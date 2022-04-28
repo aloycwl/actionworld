@@ -6,11 +6,8 @@ interface BEP20{
     function transferFrom(address sender,address recipient,uint256 amount)external returns(bool);
 }
 contract ActionWorld{
-    uint256 public constant INVEST_MIN_AMOUNT=100e18;
     uint256 public constant PROJECT_FEE=8;
     uint256 public constant POOL_FEE=2;
-    uint256 public constant PERCENTS_DIVIDER=100;
-    uint256 public constant TIME_STEP=1 days;
     uint256 public totalUsers;
     uint256 public totalInvested;
     uint256 public totalWithdrawn;
@@ -81,7 +78,7 @@ contract ActionWorld{
         }
     }
     function invest(address r,uint256 a)external{
-        require(a>=INVEST_MIN_AMOUNT);
+        require(a>=100e18);
         BEP20 t=BEP20(tokenAddress);
         require(t.allowance(msg.sender,address(this))>=a&&t.balanceOf(msg.sender)>=a);
         User storage user=users[msg.sender];
@@ -125,8 +122,8 @@ contract ActionWorld{
         user.checkpoint=block.timestamp;
         totalInvested+=a;
         totalDeposits++;
-        uint256 _fees=a*PROJECT_FEE/PERCENTS_DIVIDER;
-        poolAmount=poolAmount+a*POOL_FEE/PERCENTS_DIVIDER;
+        uint256 _fees=a*PROJECT_FEE/100;
+        poolAmount=poolAmount+a*POOL_FEE/100;
         if(poolAmount>0&&poolUsers.length>0)payPoolUsers();
         t.transferFrom(msg.sender,admin,_fees);
         t.transferFrom(msg.sender,address(this),a-_fees);
@@ -135,9 +132,9 @@ contract ActionWorld{
     function withdrawal()external{
         User storage _user=users[msg.sender];
         uint256 tb=users[msg.sender].referrerBonus+GetUplineIncomeByUserId(msg.sender)+GetDownlineIncomeByUserId(msg.sender)-users[msg.sender].singleDownlineBonusTaken+users[msg.sender].singleUplineBonusTaken;
-        uint256 _fees=tb*PROJECT_FEE/PERCENTS_DIVIDER;
-        poolAmount=poolAmount+tb*POOL_FEE/PERCENTS_DIVIDER;
-        uint256 actualAmountToSend=tb-_fees-tb*POOL_FEE/PERCENTS_DIVIDER;
+        uint256 _fees=tb*PROJECT_FEE/100;
+        poolAmount=poolAmount+tb*POOL_FEE/100;
+        uint256 actualAmountToSend=tb-_fees-tb*POOL_FEE/100;
         _user.referrerBonus=0;
         _user.singleUplineBonusTaken=GetUplineIncomeByUserId(msg.sender);
         _user.singleDownlineBonusTaken=GetDownlineIncomeByUserId(msg.sender);
@@ -178,7 +175,7 @@ contract ActionWorld{
         if(poolAmount>0&&poolUsers.length>0)payPoolUsers();
         emit Withdrawn(msg.sender,actualAmountToSend*withdrwal/100);
     }
-    function GetUplineIncomeByUserId(address u) public view returns(uint256 bonus){
+    function GetUplineIncomeByUserId(address u)public view returns(uint256 bonus){
        (uint256 maxLevel,)=getEligibleLevelCountForUpline(u);
         address upline=users[u].singleUpline;
         for(uint256 i=0;i<maxLevel;i++)
@@ -187,9 +184,9 @@ contract ActionWorld{
                 upline=users[upline].singleUpline;
             }else break;
     }
-    function GetDownlineIncomeByUserId(address _user)public view returns(uint256 bonus){
-       (,uint256 maxLevel)=getEligibleLevelCountForUpline(_user);
-        address upline=users[_user].singleDownline;
+    function GetDownlineIncomeByUserId(address u)public view returns(uint256 bonus){
+       (,uint256 maxLevel)=getEligibleLevelCountForUpline(u);
+        address upline=users[u].singleDownline;
         for(uint256 i=0;i<maxLevel;i++){
             if(upline!=address(0)){
                 bonus=bonus+users[upline].amount/100;
