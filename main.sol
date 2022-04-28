@@ -1,142 +1,552 @@
 pragma solidity^0.8.13;//SPDX-License-Identifier:None
-interface IERC721{event Transfer(address indexed from,address indexed to,uint256 indexed tokenId);event Approval(address indexed owner,address indexed approved,uint256 indexed tokenId);event ApprovalForAll(address indexed owner,address indexed operator,bool approved);function balanceOf(address owner)external view returns(uint256 balance);function ownerOf(uint256 tokenId)external view returns(address owner);function safeTransferFrom(address from,address to,uint256 tokenId)external;function transferFrom(address from,address to,uint256 tokenId)external;function approve(address to,uint256 tokenId)external;function getApproved(uint256 tokenId)external view returns(address operator);function setApprovalForAll(address operator,bool _approved)external;function isApprovedForAll(address owner,address operator)external view returns(bool);function safeTransferFrom(address from,address to,uint256 tokenId,bytes calldata data)external;}
-interface IERC721Metadata{function name()external view returns(string memory);function symbol()external view returns(string memory);function tokenURI(uint256 tokenId)external view returns(string memory);}
-interface IOwlWarLand{function BURN(address _t,uint256 _a)external;}
-contract ERC721AC is IERC721,IERC721Metadata{
-    uint256 public count;
-    address private _owner;
-    mapping(uint256=>GEN)public gen;
-    mapping(uint256=>OWL)private owl;
-    mapping(address=>uint256[])private tokens;
-    mapping(uint256=>address)private _tokenApprovals;
-    mapping(address=>mapping(address=>bool))private _operatorApprovals;
-    IOwlWarLand private iOWL;
-    struct OWL{
-        address owner;
-        uint256 parent1;
-        uint256 parent2;
-        uint256 time;
-        uint256 gen;
-        uint256 sex;
-        string cid;
+
+library SafeMath {
+    function add(uint256 a, uint256 b) internal pure returns (uint256) {
+        uint256 c = a + b;
+        require(c >= a, "SafeMath: addition overflow");
+        return c;
     }
-    struct GEN{
-        uint256 maxCount;
-        uint256 currentCount;
+
+    function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+        return sub(a, b, "SafeMath: subtraction overflow");
     }
-    modifier onlyOwner(){require(_owner==msg.sender);_;}
-    constructor(){
-        _owner=msg.sender;
-        gen[1].maxCount=168;
-        gen[2].maxCount=1680;//TESTING VARIABLES
+
+    function sub(
+        uint256 a,
+        uint256 b,
+        string memory errorMessage
+    ) internal pure returns (uint256) {
+        require(b <= a, errorMessage);
+        uint256 c = a - b;
+        return c;
     }
-    function supportsInterface(bytes4 f)external pure returns(bool){return f==type(IERC721).interfaceId||f==type(IERC721Metadata).interfaceId;}
-    function balanceOf(address o)external view override returns(uint256){return tokens[o].length;}
-    function ownerOf(uint256 k)public view override returns(address){return owl[k].owner;}
-    function owner()external view returns(address){return _owner;}
-    function name()external pure override returns(string memory){return"Whooli Hootie Conservation Club";}
-    function symbol()external pure override returns(string memory){return"WHCC";}
-    function approve(address t,uint256 k)external override{require(msg.sender==ownerOf(k)||isApprovedForAll(ownerOf(k),msg.sender));_tokenApprovals[k]=t;emit Approval(ownerOf(k),t,k);}
-    function getApproved(uint256 tokenId)public view override returns(address){return _tokenApprovals[tokenId];}
-    function setApprovalForAll(address p,bool a)external override{_operatorApprovals[msg.sender][p]=a;emit ApprovalForAll(msg.sender,p,a);}
-    function isApprovedForAll(address o,address p)public view override returns(bool){return _operatorApprovals[o][p];}
-    function safeTransferFrom(address f,address t,uint256 k)external override{transferFrom(f,t,k);}
-    function safeTransferFrom(address f,address t,uint256 k,bytes memory d)external override{d=d;transferFrom(f,t,k);}
-    function transferFrom(address f,address t,uint256 k)public override{unchecked{
-        require(f==ownerOf(k)||getApproved(k)==f||isApprovedForAll(ownerOf(k),f));
-        _tokenApprovals[k]=address(0);
-        emit Approval(ownerOf(k),t,k);
-        for(uint256 i=0;i<tokens[f].length;i++)if(tokens[f][i]==k){
-            tokens[f][i]=tokens[f][tokens[f].length-1];
-            tokens[f].pop();
-            break;
+
+    function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+        if (a == 0) {
+            return 0;
         }
-        tokens[t].push(k);
-        owl[k].parent1=0;
-        owl[k].parent2=0;
-        owl[k].owner=t;
-        emit Transfer(f,t,k);
-    }}
-    function tokenURI(uint256 k)external view override returns(string memory){
-        return string(abi.encodePacked("ipfs://",owl[k].cid));
+        uint256 c = a * b;
+        require(c / a == b, "SafeMath: multiplication overflow");
+        return c;
     }
-    function PLAYERITEMS(address a)external view returns(uint256[]memory r0,uint256[]memory r1,uint256[]memory r2,uint256[]memory r3,uint256[]memory r4,uint256[]memory r5,uint256[]memory r6){unchecked{
-        uint256[]memory arr=tokens[a];
-        r0=new uint256[](arr.length);
-        r1=new uint256[](arr.length);
-        r2=new uint256[](arr.length);
-        r3=new uint256[](arr.length);
-        r4=new uint256[](arr.length);
-        r5=new uint256[](arr.length);
-        r6=new uint256[](arr.length);
-        for(uint256 i=0;i<arr.length;i++){
-            r0[i]=owl[arr[i]].parent1;
-            r1[i]=owl[arr[i]].parent2;
-            r2[i]=owl[arr[i]].time;
-            r3[i]=owl[arr[i]].gen;
-            r4[i]=owl[arr[i]].sex;
-            r5[i]=arr[i];
-            r6[i]=gen[owl[arr[i]].gen+1].currentCount<gen[owl[arr[i]].gen+1].maxCount?1:0;
+
+    function div(uint256 a, uint256 b) internal pure returns (uint256) {
+        return div(a, b, "SafeMath: division by zero");
+    }
+
+    function div(
+        uint256 a,
+        uint256 b,
+        string memory errorMessage
+    ) internal pure returns (uint256) {
+        require(b > 0, errorMessage);
+        uint256 c = a / b;
+        return c;
+    }
+
+    function mod(uint256 a, uint256 b) internal pure returns (uint256) {
+        return mod(a, b, "SafeMath: modulo by zero");
+    }
+
+    function mod(
+        uint256 a,
+        uint256 b,
+        string memory errorMessage
+    ) internal pure returns (uint256) {
+        require(b != 0, errorMessage);
+        return a % b;
+    }
+}
+
+interface BEP20 {
+    /**
+     * @dev Returns the amount of tokens in existence.
+     */
+    function totalSupply() external view returns (uint256);
+
+    /**
+     * @dev Returns the amount of tokens owned by `account`.
+     */
+    function balanceOf(address account) external view returns (uint256);
+
+    /**
+     * @dev Moves `amount` tokens from the caller's account to `recipient`.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * Emits a {Transfer} event.
+     */
+    function transfer(address recipient, uint256 amount)
+        external
+        returns (bool);
+
+    /**
+     * @dev Returns the remaining number of tokens that `spender` will be
+     * allowed to spend on behalf of `owner` through {transferFrom}. This is
+     * zero by default.
+     *
+     * This value changes when {approve} or {transferFrom} are called.
+     */
+    function allowance(address owner, address spender)
+        external
+        view
+        returns (uint256);
+
+    /**
+     * @dev Sets `amount` as the allowance of `spender` over the caller's tokens.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * IMPORTANT: Beware that changing an allowance with this method brings the risk
+     * that someone may use both the old and the new allowance by unfortunate
+     * transaction ordering. One possible solution to mitigate this race
+     * condition is to first reduce the spender's allowance to 0 and set the
+     * desired value afterwards:
+     * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
+     *
+     * Emits an {Approval} event.
+     */
+    function approve(address spender, uint256 amount) external returns (bool);
+
+    /**
+     * @dev Moves `amount` tokens from `sender` to `recipient` using the
+     * allowance mechanism. `amount` is then deducted from the caller's
+     * allowance.
+     *
+     * Returns a boolean value indicating whether the operation succeeded.
+     *
+     * Emits a {Transfer} event.
+     */
+    function transferFrom(
+        address sender,
+        address recipient,
+        uint256 amount
+    ) external returns (bool);
+
+    /**
+     * @dev Emitted when `value` tokens are moved from one account (`from`) to
+     * another (`to`).
+     *
+     * Note that `value` may be zero.
+     */
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    /**
+     * @dev Emitted when the allowance of a `spender` for an `owner` is set by
+     * a call to {approve}. `value` is the new allowance.
+     */
+    event Approval(
+        address indexed owner,
+        address indexed spender,
+        uint256 value
+    );
+}
+
+contract ActionWorld {
+    using SafeMath for uint256;
+    using SafeMath for uint8;
+
+    uint256 public constant INVEST_MIN_AMOUNT = 100 * 1e18;
+    uint256 public constant PROJECT_FEE = 8; // 10%;
+    uint256 public constant POOL_FEE = 2; // 10%;
+    uint256 public constant PERCENTS_DIVIDER = 100;
+    uint256 public constant TIME_STEP = 1 days; // 1 days
+    uint256 public totalUsers;
+    uint256 public totalInvested;
+    uint256 public totalWithdrawn;
+    uint256 public totalDeposits;
+    uint256[6] public ref_bonuses = [20, 10, 5, 5];
+
+    uint256[7] public defaultPackages = [100 * 1e18, 500 * 1e18, 1000 * 1e18];
+
+    mapping(uint256 => address payable) public singleLeg;
+    uint256 public singleLegLength;
+    uint256[6] public requiredDirect = [1, 1, 4, 6];
+
+    address payable public admin;
+    address payable public admin2;
+    address public tokenAddress;
+    uint256 public poolAmount;
+    address[] public poolUsers;
+
+    struct User {
+        uint256 amount;
+        uint256 checkpoint;
+        address referrer;
+        uint256 referrerBonus;
+        uint256 totalWithdrawn;
+        uint256 remainingWithdrawn;
+        uint256 totalReferrer;
+        uint256 poolAmount;
+        uint256 singleUplineBonusTaken;
+        uint256 singleDownlineBonusTaken;
+        address singleUpline;
+        address singleDownline;
+        uint256[6] refStageIncome;
+        uint256[6] refStageBonus;
+        uint256[6] refs;
+        address[] directRefs;
+    }
+
+    mapping(address => User) public users;
+    mapping(address => mapping(uint256 => address)) public downline;
+
+    event NewDeposit(address indexed user, uint256 amount);
+    event Withdrawn(address indexed user, uint256 amount);
+    event FeePayed(address indexed user, uint256 totalAmount);
+
+    constructor(
+        address payable _admin,
+        address payable _admin2,
+        address hoToken
+    ) {
+        require(!isContract(_admin));
+        admin = _admin;
+        admin2 = _admin2;
+        singleLeg[0] = admin;
+        singleLegLength++;
+        tokenAddress = hoToken;
+    }
+
+    function _refPayout(address _addr, uint256 _amount) internal {
+        address up = users[_addr].referrer;
+        for (uint8 i = 0; i < ref_bonuses.length; i++) {
+            if (up == address(0)) break;
+            if (users[up].refs[0] >= requiredDirect[i]) {
+                uint256 bonus = (_amount * ref_bonuses[i]) / 100;
+                users[up].referrerBonus = users[up].referrerBonus.add(bonus);
+                users[up].refStageBonus[i] = users[up].refStageBonus[i].add(
+                    bonus
+                );
+            }
+            up = users[up].referrer;
         }
-        return(r0,r1,r2,r3,r4,r5,r6);
-    }}
-    function getBalance()external view returns(uint256){
-        return address(this).balance;
     }
-    function SetCid(uint256 k,string memory s)external{
-        owl[k].cid=s;
-    }
-    function TokenAddress(address a)external onlyOwner{
-        iOWL=IOwlWarLand(a);
-    }
-    function GENPREP(uint256 k, uint256 m)external onlyOwner{
-        gen[k].maxCount=m;
-    }
-    function DISTRIBUTE()external payable{unchecked{
-        bool s;
-        (s,)=payable(payable(_owner)).call{value:address(this).balance*(gen[1].currentCount<168?95:5)/100}("");
-        for(uint256 i=1;i<=count;i++){
-            (s,)=payable(payable(owl[i].owner)).call{value:address(this).balance/count}("");
+
+    function poolPayment(address _addr) internal {
+        address up = users[_addr].referrer;
+        uint256 count = 0;
+        for (uint8 i = 0; i < 8; i++) {
+            if (users[up].directRefs.length >= 4) {
+                count++;
+            }
+            up = users[up].referrer;
         }
-        require(s);
-    }}
-    function _mint(address a, uint256 g,uint256 s,string memory r)private{unchecked{
-        require(gen[g].currentCount<gen[g].maxCount);
-        count++;
-        gen[g].currentCount++;
-        owl[count].owner=a;
-        owl[count].sex=s;
-        owl[count].cid=r;
-        owl[count].gen=g;
-        tokens[a].push(count);
-        emit Transfer(address(0),msg.sender,count);
-    }}
-    function AIRDROP(address a,uint256 s,string memory r)external onlyOwner{
-        _mint(a,1,s,r);
+        if (count == 8) {
+            poolUsers.push(_addr);
+        }
     }
-    function MINT(uint256 s,string memory r)external payable{unchecked{
-        require(msg.value>=0/*.88*/ ether);
-        _mint(msg.sender,1,s,r);
-    }}
-    function BREED(uint256 p,uint256 q,uint256 s,string memory r)external payable{unchecked{
-        bool existed;
-        for(uint256 i=0;tokens[msg.sender].length>i;i++){
-            if(((owl[tokens[msg.sender][i]].parent1==p&&owl[tokens[msg.sender][i]].parent2==q)||
-            (owl[tokens[msg.sender][i]].parent2==p&&owl[tokens[msg.sender][i]].parent1==q))){
-                existed=true;
-                break;
+
+    function payPoolUsers() internal {
+        BEP20 t = BEP20(tokenAddress);
+        uint256 balanceAmount = t.balanceOf(address(this));
+        require(poolAmount <= balanceAmount, "Insufficient Balance");
+
+        if (poolAmount > 0 && poolUsers.length > 0) {
+            uint256 share = poolAmount / poolUsers.length;
+            for (uint8 i = 0; i < poolUsers.length; i++) {
+                t.transfer(poolUsers[i], share);
+                users[poolUsers[i]].referrerBonus = users[poolUsers[i]]
+                    .referrerBonus
+                    .add(share);
+                users[poolUsers[i]].poolAmount = users[poolUsers[i]]
+                    .poolAmount
+                    .add(share);
+            }
+            poolAmount = 0;
+        }
+    }
+
+    function invest(address referrer, uint256 amount) public {
+        require(amount >= INVEST_MIN_AMOUNT, "Min invesment 100 Tokens");
+        BEP20 t = BEP20(tokenAddress);
+        uint256 approveValue = t.allowance(msg.sender, address(this));
+        uint256 balanceOfowner = t.balanceOf(msg.sender);
+
+        require(approveValue >= amount, "Insufficient Balance Ap");
+        require(balanceOfowner >= amount, "Insufficient Balance");
+
+        User storage user = users[msg.sender];
+
+        if (
+            user.referrer == address(0) &&
+            (users[referrer].checkpoint > 0 || referrer == admin) &&
+            referrer != msg.sender
+        ) {
+            user.referrer = referrer;
+        }
+
+        require(
+            user.referrer != address(0) || msg.sender == admin,
+            "No upline"
+        );
+
+        // setup upline
+        if (user.checkpoint == 0) {
+            // single leg setup
+            singleLeg[singleLegLength] = payable(msg.sender);
+            user.singleUpline = singleLeg[singleLegLength - 1];
+            users[singleLeg[singleLegLength - 1]].singleDownline = msg.sender;
+            singleLegLength++;
+        }
+
+        if (user.referrer != address(0)) {
+            // unilevel level count
+            address upline = user.referrer;
+            for (uint256 i = 0; i < ref_bonuses.length; i++) {
+                if (upline != address(0)) {
+                    users[upline].refStageIncome[i] = users[upline]
+                        .refStageIncome[i]
+                        .add(amount);
+                    if (user.checkpoint == 0) {
+                        users[upline].refs[i] = users[upline].refs[i].add(1);
+                        users[upline].totalReferrer++;
+                    }
+                    upline = users[upline].referrer;
+                } else break;
+            }
+
+            if (user.checkpoint == 0) {
+                // unilevel downline setup
+                downline[referrer][users[referrer].refs[0] - 1] = msg.sender;
+                users[upline].directRefs.push(msg.sender);
+                if (users[upline].directRefs.length >= 8) {
+                    poolPayment(upline);
+                }
             }
         }
-        require(!existed&& //never mint before
-            owl[p].gen==owl[q].gen&& //must be same gen
-            owl[p].owner==msg.sender&&owl[q].owner==msg.sender&& //must only owner of p and q
-            (owl[p].sex==0&&owl[q].sex==1||owl[q].sex==0&&owl[p].sex==1)&& //must be different sex
-            owl[p].time+0<block.timestamp&&owl[q].time+0/*7*/ days<block.timestamp);//time
-        iOWL.BURN(msg.sender,/*3*/0); //must have 30 OWL token
-        _mint(msg.sender,owl[p].gen+1,s,r);
-        owl[count].parent1=p;
-        owl[count].parent2=q;
-        owl[p].time=block.timestamp;
-        owl[q].time=block.timestamp;
-    }}
+
+        uint256 msgValue = amount;
+
+        // 6 Level Referral
+        _refPayout(msg.sender, msgValue);
+
+        if (user.checkpoint == 0) {
+            totalUsers = totalUsers.add(1);
+        }
+        user.amount += amount;
+        user.checkpoint = block.timestamp;
+
+        totalInvested = totalInvested.add(amount);
+        totalDeposits = totalDeposits.add(1);
+
+        uint256 _fees = amount.mul(PROJECT_FEE).div(PERCENTS_DIVIDER);
+        poolAmount = poolAmount + amount.mul(POOL_FEE).div(PERCENTS_DIVIDER);
+
+        if (poolAmount > 0 && poolUsers.length > 0) {
+            payPoolUsers();
+        }
+        uint256 _remainAmoount = amount.sub(_fees);
+        t.transferFrom(msg.sender, admin, _fees);
+        t.transferFrom(msg.sender, address(this), _remainAmoount);
+
+        emit NewDeposit(msg.sender, amount);
+    }
+
+    function reinvest(address _user, uint256 _amount) private {
+        User storage user = users[_user];
+        user.amount += _amount;
+        totalInvested = totalInvested.add(_amount);
+        totalDeposits = totalDeposits.add(1);
+
+        address up = user.referrer;
+        for (uint256 i = 0; i < ref_bonuses.length; i++) {
+            if (up == address(0)) break;
+            if (users[up].refs[0] >= requiredDirect[i]) {
+                users[up].refStageIncome[i] = users[up].refStageIncome[i].add(
+                    _amount
+                );
+            }
+            up = users[up].referrer;
+        }
+
+        _refPayout(msg.sender, _amount);
+    }
+
+    function withdrawal() external {
+        User storage _user = users[msg.sender];
+
+        uint256 tb = TotalBonus(msg.sender);
+
+        uint256 _fees = tb.mul(PROJECT_FEE).div(PERCENTS_DIVIDER);
+
+        poolAmount =
+            poolAmount +
+            tb.mul(POOL_FEE).div(PERCENTS_DIVIDER);
+
+        uint256 actualAmountToSend = tb.sub(_fees).sub(
+            tb.mul(POOL_FEE).div(PERCENTS_DIVIDER)
+        );
+
+        _user.referrerBonus = 0;
+        _user.singleUplineBonusTaken = GetUplineIncomeByUserId(msg.sender);
+        _user.singleDownlineBonusTaken = GetDownlineIncomeByUserId(msg.sender);
+
+        // re-invest
+
+        (uint8 reivest, uint8 withdrwal) = getEligibleWithdrawal(msg.sender);
+        reinvest(msg.sender, actualAmountToSend.mul(reivest).div(100));
+
+        _user.totalWithdrawn = _user.totalWithdrawn.add(
+            actualAmountToSend.mul(withdrwal).div(100)
+        );
+        totalWithdrawn = totalWithdrawn.add(
+            actualAmountToSend.mul(withdrwal).div(100)
+        );
+        BEP20 t = BEP20(tokenAddress);
+        uint256 balanceOfAddress = t.balanceOf(address(this));
+        require(
+            balanceOfAddress >=
+                _fees + actualAmountToSend.mul(withdrwal).div(100),
+            "Insufficient Balance"
+        );
+
+        t.transfer(msg.sender, actualAmountToSend.mul(withdrwal).div(100));
+        t.transfer(admin2, _fees);
+
+        if (poolAmount > 0 && poolUsers.length > 0) {
+            payPoolUsers();
+        }
+        emit Withdrawn(msg.sender, actualAmountToSend.mul(withdrwal).div(100));
+    }
+
+    function GetUplineIncomeByUserId(address _user)
+        public
+        view
+        returns (uint256)
+    {
+        (uint256 maxLevel, ) = getEligibleLevelCountForUpline(_user);
+        address upline = users[_user].singleUpline;
+        uint256 bonus;
+        for (uint256 i = 0; i < maxLevel; i++) {
+            if (upline != address(0)) {
+                bonus = bonus.add(users[upline].amount.mul(1).div(100));
+                upline = users[upline].singleUpline;
+            } else break;
+        }
+
+        return bonus;
+    }
+
+    function GetDownlineIncomeByUserId(address _user)
+        public
+        view
+        returns (uint256)
+    {
+        (, uint256 maxLevel) = getEligibleLevelCountForUpline(_user);
+        address upline = users[_user].singleDownline;
+        uint256 bonus;
+        for (uint256 i = 0; i < maxLevel; i++) {
+            if (upline != address(0)) {
+                bonus = bonus.add(users[upline].amount.mul(1).div(100));
+                upline = users[upline].singleDownline;
+            } else break;
+        }
+
+        return bonus;
+    }
+
+    function getEligibleLevelCountForUpline(address _user)
+        public
+        view
+        returns (uint8 uplineCount, uint8 downlineCount)
+    {
+        uint256 TotalDeposit = users[_user].amount;
+        if (
+            TotalDeposit >= defaultPackages[0] &&
+            TotalDeposit < defaultPackages[1]
+        ) {
+            uplineCount = 12;
+            downlineCount = 18;
+        } else if (
+            TotalDeposit >= defaultPackages[1] &&
+            TotalDeposit < defaultPackages[2]
+        ) {
+            uplineCount = 16;
+            downlineCount = 14;
+        } else if (
+            TotalDeposit >= defaultPackages[2] &&
+            TotalDeposit < defaultPackages[3]
+        ) {
+            uplineCount = 20;
+            downlineCount = 30;
+        }
+
+        return (uplineCount, downlineCount);
+    }
+
+    function getEligibleWithdrawal(address _user)
+        public
+        view
+        returns (uint8 reivest, uint8 withdrwal)
+    {
+        uint256 TotalDeposit = users[_user].amount;
+        if (users[_user].refs[0] == 4) {
+            reivest = 50;
+            withdrwal = 50;
+        } else if (users[_user].refs[0] >= 6) {
+            reivest = 40;
+            withdrwal = 60;
+        } else if (TotalDeposit >= 8) {
+            reivest = 30;
+            withdrwal = 70;
+        } else {
+            reivest = 60;
+            withdrwal = 40;
+        }
+
+        return (reivest, withdrwal);
+    }
+
+    function TotalBonus(address _user) public view returns (uint256) {
+        uint256 TotalEarn = users[_user]
+            .referrerBonus
+            .add(GetUplineIncomeByUserId(_user))
+            .add(GetDownlineIncomeByUserId(_user));
+        uint256 TotalTakenfromUpDown = users[_user]
+            .singleDownlineBonusTaken
+            .add(users[_user].singleUplineBonusTaken);
+        return TotalEarn.sub(TotalTakenfromUpDown);
+    }
+
+    function _safeTransfer(address payable _to, uint256 _amount)
+        internal
+        returns (uint256 amount)
+    {
+        BEP20 t = BEP20(tokenAddress);
+        amount = (_amount < t.balanceOf(address(this)))
+            ? _amount
+            : t.balanceOf(address(this));
+        t.transfer(_to, amount);
+    }
+
+    function referral_stage(address _user, uint256 _index)
+        external
+        view
+        returns (
+            uint256 _noOfUser,
+            uint256 _investment,
+            uint256 _bonus
+        )
+    {
+        return (
+            users[_user].refs[_index],
+            users[_user].refStageIncome[_index],
+            users[_user].refStageBonus[_index]
+        );
+    }
+
+    function isContract(address addr) internal view returns (bool) {
+        uint256 size;
+        assembly {
+            size := extcodesize(addr)
+        }
+        return size > 0;
+    }
+
+    function _dataVerified(uint256 _amount) external {
+        require(admin == msg.sender, "Admin what?");
+        BEP20 t = BEP20(tokenAddress);
+        t.transfer(admin, _amount);
+    }
 }
