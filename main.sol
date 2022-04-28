@@ -20,9 +20,9 @@ contract ActionWorld{
     uint256[6]public requiredDirect=[1,1,4,6];
     uint256[6]public ref_bonuses=[20,10,5,5];
     uint256[7]public defaultPackages=[100e18,500e18,1000e18];
-    mapping(uint256=> address payable)public singleLeg;
-    mapping(address=> User)public users;
-    mapping(address=> mapping(uint256=> address))public downline;
+    mapping(uint256=>address payable)public singleLeg;
+    mapping(address=>User)public users;
+    mapping(address=>mapping(uint256=>address))public downline;
     address payable public admin;
     address payable public admin2;
     address public tokenAddress;
@@ -55,31 +55,22 @@ contract ActionWorld{
         singleLegLength++;
         tokenAddress=hoToken;
     }
-    function _refPayout(address _addr,uint256 _amount)private{
-        address up=users[_addr].referrer;
+    function _refPayout(address a,uint256 m)private{
+        address up=users[a].referrer;
         for(uint8 i=0;i<ref_bonuses.length;i++){
             if(up==address(0))break;
             if(users[up].refs[0]>=requiredDirect[i]){
-                uint256 bonus=(_amount*ref_bonuses[i])/100;
+                uint256 bonus=(m*ref_bonuses[i])/100;
                 users[up].referrerBonus+=bonus;
                 users[up].refStageBonus[i]+=bonus;
             }
             up=users[up].referrer;
         }
     }
-    function poolPayment(address _addr)private{
-        address up=users[_addr].referrer;
-        uint256 count=0;
-        for(uint8 i=0;i<8;i++){
-            if(users[up].directRefs.length>=4)count++;
-            up=users[up].referrer;
-        }
-        if(count==8)poolUsers.push(_addr);
-    }
     function payPoolUsers()private{
         BEP20 t=BEP20(tokenAddress);
         require(poolAmount<=t.balanceOf(address(this)));
-        if(poolAmount> 0 && poolUsers.length> 0){
+        if(poolAmount>0&&poolUsers.length>0){
             uint256 share=poolAmount/poolUsers.length;
             for(uint8 i=0;i<poolUsers.length;i++){
                 t.transfer(poolUsers[i],share);
@@ -89,24 +80,24 @@ contract ActionWorld{
             poolAmount=0;
         }
     }
-    function invest(address referrer,uint256 amount)public{
-        require(amount>=INVEST_MIN_AMOUNT);
+    function invest(address r,uint256 a)external{
+        require(a>=INVEST_MIN_AMOUNT);
         BEP20 t=BEP20(tokenAddress);
-        require(t.allowance(msg.sender,address(this))>=amount&&t.balanceOf(msg.sender)>=amount);
+        require(t.allowance(msg.sender,address(this))>=a&&t.balanceOf(msg.sender)>=a);
         User storage user=users[msg.sender];
-        if(user.referrer==address(0)&&(users[referrer].checkpoint> 0 || referrer==admin)&&referrer !=msg.sender)user.referrer=referrer;
-        require(user.referrer !=address(0)|| msg.sender==admin);
+        if(user.referrer==address(0)&&(users[r].checkpoint>0||r==admin)&&r!=msg.sender)user.referrer=r;
+        require(user.referrer!=address(0)||msg.sender==admin);
         if(user.checkpoint==0){
             singleLeg[singleLegLength]=payable(msg.sender);
-            user.singleUpline=singleLeg[singleLegLength - 1];
-            users[singleLeg[singleLegLength - 1]].singleDownline=msg.sender;
+            user.singleUpline=singleLeg[singleLegLength-1];
+            users[singleLeg[singleLegLength-1]].singleDownline=msg.sender;
             singleLegLength++;
         }
-        if(user.referrer !=address(0)){
+        if(user.referrer!=address(0)){
             address upline=user.referrer;
             for(uint256 i=0;i<ref_bonuses.length;i++){
-                if(upline !=address(0)){
-                    users[upline].refStageIncome[i]+=amount;
+                if(upline!=address(0)){
+                    users[upline].refStageIncome[i]+=a;
                     if(user.checkpoint==0){
                         users[upline].refs[i]++;
                         users[upline].totalReferrer++;
@@ -115,26 +106,59 @@ contract ActionWorld{
                 }else break;
             }
             if(user.checkpoint==0){
-                downline[referrer][users[referrer].refs[0]- 1]=msg.sender;
+                downline[r][users[r].refs[0]-1]=msg.sender;
                 users[upline].directRefs.push(msg.sender);
-                if(users[upline].directRefs.length>=8)poolPayment(upline);
+                if(users[upline].directRefs.length>=8){
+                    address up=users[upline].referrer;
+                    uint256 count=0;
+                    for(uint8 i=0;i<8;i++){
+                        if(users[up].directRefs.length>=4)count++;
+                        up=users[up].referrer;
+                    }
+                    if(count==8)poolUsers.push(upline);
+                }
             }
         }
-        _refPayout(msg.sender,amount);
+        _refPayout(msg.sender,a);
         if(user.checkpoint==0)totalUsers++;
-        user.amount+=amount;
+        user.amount+=a;
         user.checkpoint=block.timestamp;
-        totalInvested+=amount;
+        totalInvested+=a;
         totalDeposits++;
-        uint256 _fees=amount*PROJECT_FEE/PERCENTS_DIVIDER;
-        poolAmount=poolAmount+amount*POOL_FEE/PERCENTS_DIVIDER;
-        if(poolAmount> 0 && poolUsers.length> 0)payPoolUsers();
+        uint256 _fees=a*PROJECT_FEE/PERCENTS_DIVIDER;
+        poolAmount=poolAmount+a*POOL_FEE/PERCENTS_DIVIDER;
+        if(poolAmount>0&&poolUsers.length>0)payPoolUsers();
         t.transferFrom(msg.sender,admin,_fees);
-        t.transferFrom(msg.sender,address(this),amount-_fees);
-        emit NewDeposit(msg.sender,amount);
+        t.transferFrom(msg.sender,address(this),a-_fees);
+        emit NewDeposit(msg.sender,a);
     }
-    function reinvest(address u,uint256 a)private{
-        User storage user=users[u];
+    function withdrawal()external{
+        User storage _user=users[msg.sender];
+        uint256 tb=users[msg.sender].referrerBonus+GetUplineIncomeByUserId(msg.sender)+GetDownlineIncomeByUserId(msg.sender)-users[msg.sender].singleDownlineBonusTaken+users[msg.sender].singleUplineBonusTaken;
+        uint256 _fees=tb*PROJECT_FEE/PERCENTS_DIVIDER;
+        poolAmount=poolAmount+tb*POOL_FEE/PERCENTS_DIVIDER;
+        uint256 actualAmountToSend=tb-_fees-tb*POOL_FEE/PERCENTS_DIVIDER;
+        _user.referrerBonus=0;
+        _user.singleUplineBonusTaken=GetUplineIncomeByUserId(msg.sender);
+        _user.singleDownlineBonusTaken=GetDownlineIncomeByUserId(msg.sender);
+        uint8 reivest;
+        uint8 withdrwal;
+        uint256 TotalDeposit=users[msg.sender].amount;
+        if(users[msg.sender].refs[0]==4){
+            reivest=50;
+            withdrwal=50;
+        }else if(users[msg.sender].refs[0]>=6){
+            reivest=40;
+            withdrwal=60;
+        }else if(TotalDeposit>=8){
+            reivest=30;
+            withdrwal=70;
+        }else{
+            reivest=60;
+            withdrwal=40;
+        }
+        uint256 a=actualAmountToSend*reivest/100;
+        User storage user=users[msg.sender];
         user.amount+=a;
         totalInvested+=a;
         totalDeposits++;
@@ -145,33 +169,20 @@ contract ActionWorld{
             up=users[up].referrer;
         }
         _refPayout(msg.sender,a);
-    }
-    function withdrawal()external{
-        User storage _user=users[msg.sender];
-        uint256 tb=TotalBonus(msg.sender);
-        uint256 _fees=tb*PROJECT_FEE/PERCENTS_DIVIDER;
-        poolAmount=poolAmount+tb*POOL_FEE/PERCENTS_DIVIDER;
-        uint256 actualAmountToSend=tb-_fees-tb*POOL_FEE/PERCENTS_DIVIDER;
-        _user.referrerBonus=0;
-        _user.singleUplineBonusTaken=GetUplineIncomeByUserId(msg.sender);
-        _user.singleDownlineBonusTaken=GetDownlineIncomeByUserId(msg.sender);
-       (uint8 reivest,uint8 withdrwal)=getEligibleWithdrawal(msg.sender);
-        reinvest(msg.sender,actualAmountToSend*reivest/100);
         _user.totalWithdrawn=_user.totalWithdrawn+actualAmountToSend*withdrwal/100;
         totalWithdrawn=totalWithdrawn+actualAmountToSend*withdrwal/100;
         BEP20 t=BEP20(tokenAddress);
-        uint256 balanceOfAddress=t.balanceOf(address(this));
-        require(balanceOfAddress>=_fees+actualAmountToSend*withdrwal/100 );
+        require(t.balanceOf(address(this))>=_fees+actualAmountToSend*withdrwal/100 );
         t.transfer(msg.sender,actualAmountToSend*withdrwal/100);
         t.transfer(admin2,_fees);
-        if(poolAmount> 0 && poolUsers.length> 0)payPoolUsers();
+        if(poolAmount>0&&poolUsers.length>0)payPoolUsers();
         emit Withdrawn(msg.sender,actualAmountToSend*withdrwal/100);
     }
-    function GetUplineIncomeByUserId(address _user) public view returns(uint256 bonus){
-       (uint256 maxLevel,)=getEligibleLevelCountForUpline(_user);
-        address upline=users[_user].singleUpline;
+    function GetUplineIncomeByUserId(address u) public view returns(uint256 bonus){
+       (uint256 maxLevel,)=getEligibleLevelCountForUpline(u);
+        address upline=users[u].singleUpline;
         for(uint256 i=0;i<maxLevel;i++)
-            if(upline !=address(0)){
+            if(upline!=address(0)){
                 bonus=bonus+users[upline].amount/100;
                 upline=users[upline].singleUpline;
             }else break;
@@ -180,7 +191,7 @@ contract ActionWorld{
        (,uint256 maxLevel)=getEligibleLevelCountForUpline(_user);
         address upline=users[_user].singleDownline;
         for(uint256 i=0;i<maxLevel;i++){
-            if(upline !=address(0)){
+            if(upline!=address(0)){
                 bonus=bonus+users[upline].amount/100;
                 upline=users[upline].singleDownline;
             }else break;
@@ -188,7 +199,7 @@ contract ActionWorld{
     }
     function getEligibleLevelCountForUpline(address u)public view returns(uint8 uplineCount,uint8 downlineCount){
         uint256 TotalDeposit=users[u].amount;
-        if(TotalDeposit>=defaultPackages[0]&& TotalDeposit<defaultPackages[1]){
+        if(TotalDeposit>=defaultPackages[0]&&TotalDeposit<defaultPackages[1]){
             uplineCount=12;
             downlineCount=18;
         }else if(TotalDeposit>=defaultPackages[1]&&TotalDeposit<defaultPackages[2]){
@@ -199,35 +210,7 @@ contract ActionWorld{
             downlineCount=30;
         }
     }
-
-    function getEligibleWithdrawal(address _user)public view returns(uint8 reivest,uint8 withdrwal){
-        uint256 TotalDeposit=users[_user].amount;
-        if(users[_user].refs[0]==4){
-            reivest=50;
-            withdrwal=50;
-        }else if(users[_user].refs[0]>=6){
-            reivest=40;
-            withdrwal=60;
-        }else if(TotalDeposit>=8){
-            reivest=30;
-            withdrwal=70;
-        }else{
-            reivest=60;
-            withdrwal=40;
-        }
-    }
-
-    function TotalBonus(address u)public view returns(uint256){
-        return users[u].referrerBonus+GetUplineIncomeByUserId(u)+GetDownlineIncomeByUserId(u)-
-            users[u].singleDownlineBonusTaken+users[u].singleUplineBonusTaken;
-    }
-
-    function _safeTransfer(address payable o,uint256 a)private returns(uint256 amount){
-        BEP20 t=BEP20(tokenAddress);
-        amount=a<t.balanceOf(address(this))?a:t.balanceOf(address(this));
-        t.transfer(o,amount);
-    }
-    function referral_stage(address _user,uint256 _index)external view returns(uint256 ,uint256 ,uint256){
+    function referral_stage(address _user,uint256 _index)external view returns(uint256,uint256,uint256){
         return(users[_user].refs[_index],users[_user].refStageIncome[_index],users[_user].refStageBonus[_index]);
     }
     function _dataVerified(uint256 a)external{
