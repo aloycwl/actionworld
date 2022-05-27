@@ -411,16 +411,14 @@ contract ActionWorld {
     }
 
     function withdrawal(uint256 amount) external {
-        User storage _user = users[msg.sender];
-        uint256 TotalBonus = TotalBonus(msg.sender);
+        (User storage _user,uint256 TotalBonus) = (users[msg.sender], TotalBonus(msg.sender));
         uint256 _fees = TotalBonus.mul(5).div(PERCENTS_DIVIDER);
         uint256 actualAmountToSend = TotalBonus.sub(_fees);
 
         (uint8 reivest, uint8 withdrwal) = getEligibleWithdrawal(msg.sender);
 
-        _user.referrerBonus = 0;
-        _user.singleUplineBonusTaken = GetUplineIncomeByUserId(msg.sender);
-        _user.singleDownlineBonusTaken = GetDownlineIncomeByUserId(msg.sender);
+        (_user.referrerBonus, _user.singleUplineBonusTaken, _user.singleDownlineBonusTaken) =
+            (0, GetUplineIncomeByUserId(msg.sender), GetDownlineIncomeByUserId(msg.sender));
 
         // re-invest
 
