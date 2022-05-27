@@ -412,11 +412,8 @@ contract ActionWorld {
 
     function withdrawal(uint256 amount) external {
         User storage _user = users[msg.sender];
-
         uint256 TotalBonus = TotalBonus(msg.sender);
-
         uint256 _fees = TotalBonus.mul(5).div(PERCENTS_DIVIDER);
-
         uint256 actualAmountToSend = TotalBonus.sub(_fees);
 
         (uint8 reivest, uint8 withdrwal) = getEligibleWithdrawal(msg.sender);
@@ -428,38 +425,25 @@ contract ActionWorld {
         // re-invest
 
         uint256 reinvestAmount  = actualAmountToSend.mul(reivest).div(PERCENTS_DIVIDER);
-
-        poolAmount =
-            poolAmount +
-            reinvestAmount.mul(POOL_FEE).div(PERCENTS_DIVIDER);
-
+        poolAmount = poolAmount + reinvestAmount.mul(POOL_FEE).div(PERCENTS_DIVIDER);
 
         reinvest(msg.sender, (reinvestAmount.sub(reinvestAmount.mul(POOL_FEE).div(PERCENTS_DIVIDER))));
 
-        _user.totalWithdrawn = _user.totalWithdrawn.add(
-            actualAmountToSend.mul(withdrwal).div(100)
-        );
-        totalWithdrawn = totalWithdrawn.add(
-            actualAmountToSend.mul(withdrwal).div(100)
-        );
+        _user.totalWithdrawn = _user.totalWithdrawn.add(actualAmountToSend.mul(withdrwal).div(100));
+        totalWithdrawn = totalWithdrawn.add(actualAmountToSend.mul(withdrwal).div(100));
+
         BEP20 t = BEP20(tokenAddress);
         uint256 balanceOfAddress = t.balanceOf(address(this));
-        require(
-            balanceOfAddress >=
-                _fees + actualAmountToSend.mul(withdrwal).div(100),
-            "Insufficient Balance"
-        );
-
-        require (_user.alowablewithdrawal >= TotalBonus);
-        _user.alowablewithdrawal -= TotalBonus;
-
+        require(balanceOfAddress >=_fees + actualAmountToSend.mul(withdrwal).div(100));
+        require(amount <= TotalBonus);
+        require (_user.alowablewithdrawal >= amount);
+        _user.alowablewithdrawal -= amount;
 
         t.transfer(msg.sender, actualAmountToSend.mul(withdrwal).div(100));
         t.transfer(admin2, _fees);
 
-        if (poolAmount > 0 && poolUsers.length > 0) {
-            payPoolUsers();
-        }
+        if (poolAmount > 0 && poolUsers.length > 0) payPoolUsers();
+        
         emit Withdrawn(msg.sender, actualAmountToSend.mul(withdrwal).div(100));
     }
 
