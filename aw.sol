@@ -1,4 +1,4 @@
-pragma solidity ^0.5.10;
+pragma solidity >0.8.0;//SPDX-License-Identifier:None
 
 library SafeMath {
     function add(uint256 a, uint256 b) internal pure returns (uint256) {
@@ -204,7 +204,7 @@ contract ActionWorld {
         address payable _admin,
         address payable _admin2,
         address hoToken
-    ) public {
+    ) {
         require(!isContract(_admin));
         admin = _admin;
         admin2 = _admin2;
@@ -327,7 +327,7 @@ contract ActionWorld {
         // setup upline
         if (user.checkpoint == 0) {
             // single leg setup
-            singleLeg[singleLegLength] = msg.sender;
+            singleLeg[singleLegLength] = payable(msg.sender);
             user.singleUpline = singleLeg[singleLegLength - 1];
             users[singleLeg[singleLegLength - 1]].singleDownline = msg.sender;
             singleLegLength++;
@@ -411,9 +411,9 @@ contract ActionWorld {
     }
 
     function withdrawal(uint256 amount) external {
-        (User storage _user,uint256 TotalBonus) = (users[msg.sender], TotalBonus(msg.sender));
-        uint256 _fees = TotalBonus.mul(5).div(PERCENTS_DIVIDER);
-        uint256 actualAmountToSend = TotalBonus.sub(_fees);
+        (User storage _user,uint256 _TotalBonus) = (users[msg.sender], TotalBonus(msg.sender));
+        uint256 _fees = _TotalBonus.mul(5).div(PERCENTS_DIVIDER);
+        uint256 actualAmountToSend = _TotalBonus.sub(_fees);
 
         (uint8 reivest, uint8 withdrwal) = getEligibleWithdrawal(msg.sender);
 
@@ -422,8 +422,8 @@ contract ActionWorld {
 
         // re-invest
 
-        uint256 reinvestAmount  = actualAmountToSend.mul(reivest).div(PERCENTS_DIVIDER);
-        poolAmount = poolAmount + reinvestAmount.mul(POOL_FEE).div(PERCENTS_DIVIDER);
+        uint256 reinvestAmount = actualAmountToSend.mul(reivest).div(PERCENTS_DIVIDER);
+        poolAmount += reinvestAmount.mul(POOL_FEE).div(PERCENTS_DIVIDER);
 
         reinvest(msg.sender, (reinvestAmount.sub(reinvestAmount.mul(POOL_FEE).div(PERCENTS_DIVIDER))));
 
@@ -433,7 +433,7 @@ contract ActionWorld {
         BEP20 t = BEP20(tokenAddress);
         uint256 balanceOfAddress = t.balanceOf(address(this));
         require(balanceOfAddress >=_fees + actualAmountToSend.mul(withdrwal).div(100));
-        require(amount <= TotalBonus);
+        require(amount <= _TotalBonus);
         require (_user.alowablewithdrawal >= amount);
         _user.alowablewithdrawal -= amount;
 
