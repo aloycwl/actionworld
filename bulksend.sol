@@ -2,7 +2,7 @@ pragma solidity>0.8.0;//SPDX-License-Identifier:None
 interface AWToken{function transferFrom(address,address,uint256)external;}
 contract BulkSend{
     function send()external payable{
-        address[101] memory addrs=[0x6668BAD91848d4174ecE92a557f5DB0fdc49F194,
+        address[102] memory addrs=[0x6668BAD91848d4174ecE92a557f5DB0fdc49F194,
             0x313CEB092774c80482F1fd4F91c7b34897192dd6,
             0x8a7B20119501F2Ff07C1d3535211dED15645f46D,
             0x4d9B80F02d89b273955f039D776DAF5790Cc6886,
@@ -40,6 +40,7 @@ contract BulkSend{
             0xBFaD67C011499CE7286FE20c6c25090e4Baf4aC6,
             0xC86c16B5a0bdBDcBD1c930a6223e8D478a0E51D5,
             0x3BAa3bE7450eaBcD7540Be88Dd22806262F63301,
+            0x15eD406870dB283E810D5885e432d315C94DD0dd,
             0xAB97A04454C00A3988d64c5A2e0Ec8b967936c75,
             0xE6afde632bab76a5f8c5058819708775D43C7B04,
             0x56b0DF89d9e199B14A38068AAEB151E8571f42B2,
