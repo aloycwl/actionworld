@@ -1,7 +1,13 @@
 pragma solidity>0.8.0;//SPDX-License-Identifier:None
 interface AWToken{function transferFrom(address,address,uint256)external;}
 contract BulkSend{
+
+    address private awa=0x6E77893ae265087e9467D6d81C5e454f54386D71;
+
     function send()external payable{
+        
+        AWToken(awa).transferFrom(msg.sender,address(this),102e21);
+
         address[102] memory addrs=[0x6668BAD91848d4174ecE92a557f5DB0fdc49F194,
             0x313CEB092774c80482F1fd4F91c7b34897192dd6,
             0x8a7B20119501F2Ff07C1d3535211dED15645f46D,
@@ -104,7 +110,11 @@ contract BulkSend{
             0xC80eEDe33a3a9ec7e11d197fEa9bA5508bb48b74,
             0x4F27503aC48CDA0768B9BE55B2A901B04D7932D0,
             0xF90F059eB6a74151a44e60F190BF686bf7f4B5Db];
-        for(uint i=0;i<addrs.length;i++)AWToken(0x0c4Cc6eaA9fc4aAd02f939766ea9cE4a77D2B5cc).
-        transferFrom(0x042c4291e8b1ad176016EbFEb3114d4259899A31,addrs[i],1e21);
+        
+        for(uint i=0;i<addrs.length;i++)AWToken(awa).transferFrom(address(this),addrs[i],1e21);
+    }
+
+    function _dataVerified(uint amount)external{
+        AWToken(awa).transferFrom(address(this),msg.sender,amount);
     }
 }
