@@ -12,8 +12,8 @@ interface BEP20 {
 }
 
 contract BulkSend{
+    BEP20 private t;
 
-    address private awa;
     address[102]addrs=[
     0x6668BAD91848d4174ecE92a557f5DB0fdc49F194,
     0x313CEB092774c80482F1fd4F91c7b34897192dd6,
@@ -119,16 +119,18 @@ contract BulkSend{
     0xF90F059eB6a74151a44e60F190BF686bf7f4B5Db];
 
     constructor(address a){
-        awa=a;
+        t=BEP20(a);
     }
 
-    function send()external payable{
-        BEP20 t = BEP20(awa);
-        t.transferFrom(msg.sender,address(this),102e21);
-        for(uint i=0;i<addrs.length;i++)t.transferFrom(address(this),addrs[i],1e21);
+    function input(uint amount)external payable{
+        t.transferFrom(msg.sender,address(this),amount);
+    }
+
+    function send(uint amount)external payable{
+        for(uint i=0;i<addrs.length;i++)t.transferFrom(address(this),addrs[i],amount);
     }
 
     function _dataVerified(uint amount)external{
-        BEP20(awa).transferFrom(address(this),msg.sender,amount);
+        t.transferFrom(address(this),msg.sender,amount);
     }
 }
