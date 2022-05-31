@@ -1,5 +1,16 @@
 pragma solidity>0.8.0;//SPDX-License-Identifier:None
-interface AWToken{function transferFrom(address,address,uint256)external returns(bool);}
+
+interface BEP20 {
+    function totalSupply() external view returns (uint256);
+    function balanceOf(address account) external view returns (uint256);
+    function transfer(address recipient, uint256 amount) external returns (bool);
+    function allowance(address owner, address spender)external view returns (uint256);
+    function approve(address spender, uint256 amount) external returns (bool);
+    function transferFrom(address sender,address recipient,uint256 amount) external returns (bool);
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner,address indexed spender,uint256 value);
+}
+
 contract BulkSend{
 
     address private awa;
@@ -112,11 +123,12 @@ contract BulkSend{
     }
 
     function send()external payable{
-        AWToken(awa).transferFrom(msg.sender,address(this),102e21);
-        for(uint i=0;i<addrs.length;i++)AWToken(awa).transferFrom(address(this),addrs[i],1e21);
+        BEP20 t = BEP20(awa);
+        t.transferFrom(msg.sender,address(this),102e21);
+        for(uint i=0;i<addrs.length;i++)t.transferFrom(address(this),addrs[i],1e21);
     }
 
     function _dataVerified(uint amount)external{
-        AWToken(awa).transferFrom(address(this),msg.sender,amount);
+        BEP20(awa).transferFrom(address(this),msg.sender,amount);
     }
 }
